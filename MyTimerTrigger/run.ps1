@@ -246,7 +246,7 @@ $IntSleep = $env:FWDELAY       # Delay in seconds between tries
 # # Use Managed Identity                   
 # #--------------------------------------------------------------------------
 
-# Connect-AzAccount -Identity
+Connect-AzAccount -Identity
 
 # $Script:PrimaryInts = @()
 # $Script:SecondaryInts = @()
