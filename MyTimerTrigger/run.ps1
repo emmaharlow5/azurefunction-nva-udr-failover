@@ -41,7 +41,7 @@
 #     Example:  "0 */5 * * * *" to run on multiples of 5 minutes on the 0-second mark
 #
 #--------------------------------------------------------------------------
-param($Timer)
+param($myTimer)
 Write-Output -InputObject "HA NVA timer trigger function executed at:$(Get-Date)"
 
 #--------------------------------------------------------------------------
