@@ -77,8 +77,8 @@ $IntSleep = $env:FWDELAY       # Delay in seconds between tries
 #--------------------------------------------------------------------------
 
 $output = get-module az
-Write-Information -InputObject "Testing 12345"
-Write-Information -InputObject "$output"  
+Write-Information "Testing 12345"
+Write-Information "$output"  
 
 # Function Send-AlertMessage ($Message)
 # {
