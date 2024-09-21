@@ -44,6 +44,8 @@
 param($myTimer)
 Write-Output -InputObject "HA NVA timer trigger function executed at:$(Get-Date)"
 
+Write-Output -InputObject "Emma Harlow Test"
+
 #--------------------------------------------------------------------------
 # Set firewall monitoring variables here
 #--------------------------------------------------------------------------
@@ -75,10 +77,6 @@ $IntSleep = $env:FWDELAY       # Delay in seconds between tries
 #--------------------------------------------------------------------------
 # Code blocks for supporting functions
 #--------------------------------------------------------------------------
-
-$output = get-module az
-Write-Information "Testing 12345"
-Write-Information "$output"  
 
 # Function Send-AlertMessage ($Message)
 # {
