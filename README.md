@@ -120,8 +120,6 @@ To create, configure, and deploy the function app:
 | Variable                    | Value                                                                                   |
 |-----------------------------|-----------------------------------------------------------------------------------------|
 | FUNCTIONS_EXTENSION_VERSION | ~1 (Deal with [issue](https://github.com/Azure/ha-nva-fo/issues/7))                     |
-| SP\_USERNAME                | Application ID of the service principal                                                 |
-| SP\_PASSWORD                | Key value of the service principal                                                      |
 | TENANTID                    | Azure Active Directory tenant ID                                                        |
 | SUBSCRIPTIONID              | Azure subscription ID                                                                   |
 | AZURECLOUD                  | Either *AzureCloud* or *AzureUSGovernment*                                              |
