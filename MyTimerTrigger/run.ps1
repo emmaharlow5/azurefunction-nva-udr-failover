@@ -43,12 +43,14 @@
 #--------------------------------------------------------------------------
 param($myTimer)
 Write-Output -InputObject "HA NVA timer trigger function executed at:$(Get-Date)"
-
+Write-Warning "This is test 1"
 #Import-Module Az
-Import-Module Az.Accounts
-Import-Module Az.Compute
-Import-Module Az.Network
-Import-Module Az.Resources
+# Import-Module Az.Accounts
+# Import-Module Az.Compute
+# Import-Module Az.Network
+# Import-Module Az.Resources
+
+Get-Module -ListAvailable | Select-Object Name, Path
 
 #--------------------------------------------------------------------------
 # Set firewall monitoring variables here
