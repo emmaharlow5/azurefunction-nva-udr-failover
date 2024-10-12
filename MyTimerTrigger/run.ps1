@@ -113,6 +113,7 @@ Function Test-TCPPort ($Server, $Port)
 
 Function Start-Failover 
 {
+  Write-Output "Failover is Starting"
   foreach ($SubscriptionID in $Script:ListOfSubscriptionIDs){
     Set-AzContext -SubscriptionId $SubscriptionID
     $RTable = @()
