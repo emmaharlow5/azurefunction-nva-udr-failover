@@ -42,7 +42,7 @@
 #
 #--------------------------------------------------------------------------
 
-param($myTimer)
+param($vMXHATimer)
 Write-Verbose "HA vMX timer trigger function executed at:$(Get-Date)"
 
 #--------------------------------------------------------------------------
