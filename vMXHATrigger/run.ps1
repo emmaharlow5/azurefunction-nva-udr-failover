@@ -78,7 +78,7 @@ $IntSleep = $env:VMXDELAY       # Delay in seconds between tries
 
 Function Test-VMStatus ($VM, $vMXResourceGroup) {
   try {
-    $VMDetail = Get-AzVMxxx -ResourceGroupName $vMXResourceGroup -Name $VM -Status -ErrorAction Stop
+    $VMDetail = Get-AzVM -ResourceGroupName $vMXResourceGroup -Name $VM -Status -ErrorAction Stop
     foreach ($VMStatus in $VMDetail.Statuses) { 
       $Status = $VMStatus.code
       
