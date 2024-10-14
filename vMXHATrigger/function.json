@@ -1,7 +1,7 @@
 {
   "bindings": [
     {
-      "name": "myTimer",
+      "name": "vMXHATimer",
       "type": "timerTrigger",
       "direction": "in",
       "schedule": "*/30 * * * * *"
