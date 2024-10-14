@@ -15,9 +15,9 @@
 #
 #--------------------------------------------------------------------------
 #
-# High Availability (HA) Network Virtual Appliance (NVA) Failover Function
+# High Availability (HA) Network Virtual Appliance (vMX) Failover Function
 #
-# This script provides a sample for monitoring HA NVA firewall status and performing
+# This script provides a sample for monitoring HA vMX firewall status and performing
 # failover and/or failback if needed.
 #
 # This script is used as part of an Azure function app called by a Timer Trigger event.  
@@ -33,315 +33,356 @@
 #     AZURECLOUD = "AzureCloud" or "AzureUSGovernment"
 #
 #   - Set Firewall VM names and Resource Group in the Azure function app settings
-#     FW1NAME, FW2NAME, FWMONITOR, FW1FQDN, FW1PORT, FW2FQDN, FW2PORT, FW1RGNAME, FW2RGNAME, FWTRIES, FWDELAY, FWUDRTAG must be added
-#     FWMONITOR = "VMStatus" or "TCPPort" - If using "TCPPort", then also set FW1FQDN, FW2FQDN, FW1PORT and FW2PORT values
+#     vMX1NAME, vMX2NAME, FWMONITOR, vMX1FQDN, vMX1PORT, vMX2FQDN, vMX2PORT, vMX1RGNAME, vMX2RGNAME, FWTRIES, FWDELAY, FWUDRTAG must be added
+#     FWMONITOR = "VMStatus" or "TCPPort" - If using "TCPPort", then also set vMX1FQDN, vMX2FQDN, vMX1PORT and vMX2PORT values
 #
 #   - Set Timer Schedule where positions represent: Seconds - Minutes - Hours - Day - Month - DayofWeek
 #     Example:  "*/30 * * * * *" to run on multiples of 30 seconds
 #     Example:  "0 */5 * * * *" to run on multiples of 5 minutes on the 0-second mark
 #
 #--------------------------------------------------------------------------
+#$VerbosePreference = 'Continue'
 param($myTimer)
-#Write-Output -InputObject "HA NVA timer trigger function executed at:$(Get-Date)"
+Write-Verbose "HA vMX timer trigger function executed at:$(Get-Date)"
 
-#Write-Output -InputObject 'Both FW1 and FW2 Down - Manual recovery action required'
-
-# --------------------------------------------------------------------------
+#--------------------------------------------------------------------------
 # Set firewall monitoring variables here
-# --------------------------------------------------------------------------
-
-$VMFW1Name = $env:FW1NAME      # Set the Name of the primary NVA firewall
-$VMFW2Name = $env:FW2NAME      # Set the Name of the secondary NVA firewall
-$FW1RGName = $env:FW1RGNAME     # Set the ResourceGroup that contains FW1
-$FW2RGName = $env:FW2RGNAME     # Set the ResourceGroup that contains FW2
-$Monitor = $env:FWMONITOR      # "VMStatus" or "TCPPort" are valid values
-
-#--------------------------------------------------------------------------
-# The parameters below are required if using "TCPPort" mode for monitoring
 #--------------------------------------------------------------------------
 
-$TCPFW1Server = $env:FW1FQDN   # Hostname of the site to be monitored via the primary NVA firewall if using "TCPPort"
-$TCPFW1Port = $env:FW1PORT     # TCP Port of the site to be monitored via the primary NVA firewall if using "TCPPort"
-$TCPFW2Server = $env:FW2FQDN   # Hostname of the site to be monitored via the secondary NVA firewall if using "TCPPort"
-$TCPFW2Port = $env:FW2PORT     # TCP Port of the site to be monitored via the secondary NVA firewall if using "TCPPort"
+$VMVMX1Name = $env:VMVMX1Name
+$VMVMX2Name = $env:VMVMX2Name
+$VMX1RGName = $env:VMX1RGName
+$VMX2RGName = $env:VMX2RGName
+$Monitor = $env:VMXMONITOR
+$VMXUDRTAG = $env:VMXUDRTAG
+$SubscriptionID = $env:SUBSCRIPTIONID
 
-#--------------------------------------------------------------------------
-# Set the failover and failback behavior for the firewalls
-#--------------------------------------------------------------------------
 
-$FailOver = $True              # Trigger to enable fail-over to secondary NVA firewall if primary NVA firewall drops when active
-$FailBack = $True              # Trigger to enable fail-back to primary NVA firewall is secondary NVA firewall drops when active
-$IntTries = $env:FWTRIES       # Number of Firewall tests to try 
-$IntSleep = $env:FWDELAY       # Delay in seconds between tries
+# #--------------------------------------------------------------------------
+# # The parameters below are required if using "TCPPort" mode for monitoring
+# #--------------------------------------------------------------------------
 
-#--------------------------------------------------------------------------
-# Code blocks for supporting functions
-#--------------------------------------------------------------------------
 
-# Function Send-AlertMessage ($Message)
-# {
-#     $MailServers = (Resolve-DnsName -Type MX -Name $env:FWMAILDOMAINMX).NameExchange
-#     $MailFrom = $env:FWMAILFROM
-#     $MailTo = $env:FWMAILTO
+# #--------------------------------------------------------------------------
+# # Set the failover and failback behavior for the firewalls
+# #--------------------------------------------------------------------------
 
-#     try { Send-MailMessage -SmtpServer $MailServers[1] -From $MailFrom -To $MailTo -Subject $Message -Body $Message }
-#     catch { Send-MailMessage -SmtpServer $MailServers[2] -From $MailFrom -To $MailTo -Subject $Mesage -Body $Message }
-# }
+$FailOver = $True              # Trigger to enable fail-over to secondary vMX firewall if primary vMX firewall drops when active
+$FailBack = $True              # Trigger to enable fail-back to primary vMX firewall is secondary vMX firewall drops when active
+$IntTries = $env:VMXTRIES       # Number of Firewall tests to try 
+$IntSleep = $env:VMXDELAY       # Delay in seconds between tries
 
-Function Test-VMStatus ($VM, $FWResourceGroup) 
-{
-  $VMDetail = Get-AzVM -ResourceGroupName $FWResourceGroup -Name $VM -Status
-  foreach ($VMStatus in $VMDetail.Statuses)
-  { 
-    $Status = $VMStatus.code
+# #--------------------------------------------------------------------------
+# # Code blocks for supporting functions
+# #--------------------------------------------------------------------------
+
+
+
+Function Test-VMStatus ($VM, $FWResourceGroup) {
+  try {
+    $VMDetail = Get-AzVM -ResourceGroupName $FWResourceGroup -Name $VM -Status -ErrorAction Stop
+    foreach ($VMStatus in $VMDetail.Statuses) { 
+      $Status = $VMStatus.code
       
-    if($Status.CompareTo('PowerState/running') -eq 0)
-    {
-      Return $False
+      if ($Status.CompareTo('PowerState/running') -eq 0) {
+        Return $False
+      }
     }
+    Return $True
   }
-  Return $True  
+  catch {
+    Write-Error "Failed to retrieve Virtual Machines from subscription - $SubscriptionID"
+    throw "Error: $($_.Exception.Message)"
+  }
 }
 
-Function Test-TCPPort ($Server, $Port)
-{
+Function Test-TCPPort ($Server, $Port) {
   $TCPClient = New-Object -TypeName system.Net.Sockets.TcpClient
   $Iar = $TCPClient.BeginConnect($Server, $Port, $Null, $Null)
   $Wait = $Iar.AsyncWaitHandle.WaitOne(1000, $False)
   return $Wait
 }
 
-Function Start-Failover 
-{
-  Write-Output "Failover is Starting"
-  Write-Output "Script updated....12-10-2024 08:36"
-  foreach ($SubscriptionID in $Script:ListOfSubscriptionIDs){
-    Set-AzContext -SubscriptionId $SubscriptionID
-    $RTable = @()
-    $TagValue = $env:FWUDRTAG
-    $Res = Get-AzResource -TagName nva-ha-udr -TagValue $TagValue
+Function Start-Failover {
+  Write-Verbose "Starting Failover to vMX2"
+  $RTable = @()
+  $TagValue = $VMXUDRTAG # $env:VMXUDRTAG Update in Live
+  try {
+    $Res = Get-AzResource -TagName nva-ha-udr -TagValue $TagValue -ErrorAction Stop
+  }
+  catch {
+    Write-Error "Failed to retrieve Route Tables from subscription - $SubscriptionID"
+    throw "Error: $($_.Exception.Message)"
+  }
+  $x = 0
 
-    foreach ($RTable in $Res)
-    {
-      $Table = Get-AzRouteTable -ResourceGroupName $RTable.ResourceGroupName -Name $RTable.Name
-      
-      foreach ($RouteName in $Table.Routes)
-      {
-        Write-Output -InputObject "Updating route table..."
-        Write-Output -InputObject $RTable.Name
+  if ($Res.count -eq 0) {
+    Write-Verbose "No Route tables found matching tag in subscription $SubscriptionID"
+  }
+  else {
 
-        for ($i = 0; $i -lt $PrimaryInts.count; $i++)
-        {
-          if($RouteName.NextHopIpAddress -eq $SecondaryInts[$i])
-          {
-            Write-Output -InputObject 'Secondary NVA is already ACTIVE' 
+    foreach ($RTable in $Res) {
+      try {
+        $Table = Get-AzRouteTable -ResourceGroupName $RTable.ResourceGroupName -Name $RTable.Name -ErrorAction Stop
+      }
+      catch {
+        Write-Error "Failed to retrieve Routes from $($RTable.Name)"
+        throw "Error: $($_.Exception.Message)"
+      }
+      $RouteList = @($Table.Routes)
+      foreach ($RouteName in $RouteList) {
+        Write-Verbose "Checking route table $($RouteName.Name)"
+
+        for ($i = 0; $i -lt $PrimaryInts.count; $i++) {
+          if ($RouteName.NextHopIpAddress -eq $SecondaryInts[$i]) {
+            Write-Verbose 'Secondary vMX is already ACTIVE' 
             
           }
-          elseif($RouteName.NextHopIpAddress -eq $PrimaryInts[$i])
-          {
-            Set-AzRouteConfig -Name $RouteName.Name  -NextHopType VirtualAppliance -RouteTable $Table -AddressPrefix $RouteName.AddressPrefix -NextHopIpAddress $SecondaryInts[$i] 
+          elseif ($RouteName.NextHopIpAddress -eq $PrimaryInts[$i]) {
+            try {
+              Set-AzRouteConfig -Name $RouteName.Name  -NextHopType VirtualAppliance -RouteTable $Table -AddressPrefix $RouteName.AddressPrefix -NextHopIpAddress $SecondaryInts[$i] -ErrorAction Stop | out-null
+            }
+            catch {
+              Write-Error "Failed to update Route $($RouteName.Name)"
+              throw "Error: $($_.Exception.Message)"
+            }
+            Write-Verbose 'Secondary vMX is now ACTIVE'
+            $x++
           }
         }
 
       }
-  
-      $UpdateTable = [scriptblock]{param($Table) Set-AzRouteTable -RouteTable $Table}
-      &$UpdateTable $Table
+      try {
+        $UpdateTable = [scriptblock] { param($Table) Set-AzRouteTable -RouteTable $Table -ErrorAction Stop }
+        &$UpdateTable $Table | out-null  
+      }
+      catch {
+        Write-Error "Failed to update routes in Route Table $($Table.Name)"
+        throw "Error: $($_.Exception.Message)"
+      }
 
     }
+  
+    if ($x -ge 1) { Write-Output -InputObject "Route tables failed over to vMX2 *This should raise an alert*" } else { Write-Verbose "Route tables already failed over to vMX2 - No action is required" }
   }
-
-  # Send-AlertMessage -message "NVA Alert: Failover to Secondary FW2"
 
 }
 
-Function Start-Failback 
-{
-  foreach ($SubscriptionID in $Script:ListOfSubscriptionIDs)
-  {
-    Set-AzContext -SubscriptionId $SubscriptionID
-    $TagValue = $env:FWUDRTAG
-    $Res = Get-AzResource -TagName nva_ha_udr -TagValue $TagValue
+Function Start-Failback {
+    
+  Write-Verbose "Starting Failover to vMX1"
+  $RTable = @()
+  $TagValue = $VMXUDRTAG # $env:VMXUDRTAG Update in Live
+  try {
+    $Res = Get-AzResource -TagName nva-ha-udr -TagValue $TagValue -ErrorAction Stop
+  }
+  catch {
+    Write-Error "Failed to retrieve Route Tables from subscription - $SubscriptionID"
+    throw "Error: $($_.Exception.Message)"
+  }
+  $x = 0
 
-    foreach ($RTable in $Res)
-    {
-      $Table = Get-AzRouteTable -ResourceGroupName $RTable.ResourceGroupName -Name $RTable.Name
+  if ($Res.count -eq 0) {
+    Write-Verbose "No Route tables found in subscription $SubscriptionID"
+  }
+  else {
 
-      foreach ($RouteName in $Table.Routes)
-      {
-        Write-Output -InputObject "Updating route table..."
-        Write-Output -InputObject $RTable.Name
+    foreach ($RTable in $Res) {
+      try {
+        $Table = Get-AzRouteTable -ResourceGroupName $RTable.ResourceGroupName -Name $RTable.Name -ErrorAction Stop
+      }
+      catch {
+        Write-Error "Failed to retrieve Routes from $($RTable.Name)"
+        throw "Error: $($_.Exception.Message)"
+      }
+      $RouteList = @($Table.Routes)
+      foreach ($RouteName in $RouteList) {
+        Write-Verbose "Checking route table $($RouteName.Name)"
 
-        for ($i = 0; $i -lt $PrimaryInts.count; $i++)
-        {
-          if($RouteName.NextHopIpAddress -eq $PrimaryInts[$i])
-          {
-            Write-Output -InputObject 'Primary NVA is already ACTIVE' 
+        for ($i = 0; $i -lt $PrimaryInts.count; $i++) {
+          if ($RouteName.NextHopIpAddress -eq $PrimaryInts[$i]) {
+            Write-Verbose 'Primary vMX is already ACTIVE' 
           
           }
-          elseif($RouteName.NextHopIpAddress -eq $SecondaryInts[$i])
-          {
-            Set-AzRouteConfig -Name $RouteName.Name  -NextHopType VirtualAppliance -RouteTable $Table -AddressPrefix $RouteName.AddressPrefix -NextHopIpAddress $PrimaryInts[$i]
+          elseif ($RouteName.NextHopIpAddress -eq $SecondaryInts[$i]) {
+            try {
+              Set-AzRouteConfig -Name $RouteName.Name  -NextHopType VirtualAppliance -RouteTable $Table -AddressPrefix $RouteName.AddressPrefix -NextHopIpAddress $PrimaryInts[$i] -ErrorAction Stop | out-null
+            }
+            catch {
+              Write-Error "Failed to update Route $($RouteName.Name)"
+              throw "Error: $($_.Exception.Message)"
+            }
+            Write-Verbose 'Primary vMX is now ACTIVE'
+            $x++
           }  
         }
 
       }  
 
-      $UpdateTable = [scriptblock]{param($Table) Set-AzRouteTable -RouteTable $Table}
-      &$UpdateTable $Table 
-
+      $UpdateTable = [scriptblock] { param($Table) Set-AzRouteTable -RouteTable $Table -ErrorAction Stop }
+      &$UpdateTable $Table | out-null  
     }
+    catch {
+      Write-Error "Failed to update routes in Route Table $($Table.Name)"
+      throw "Error: $($_.Exception.Message)"
+    }
+
   }
 
-  # Send-AlertMessage -message "NVA Alert: Failback to Primary FW1"
+  if ($x -ge 1) { Write-Output -InputObject "Route tables failed over to vMX2 *This should raise an alert*" } else { Write-Verbose "Route tables already failed over to vMX1 - No action is required" }
+}  
 
-}
 
-Function Get-FWInterfaces
-{
-  $Nics = Get-AzNetworkInterface | Where-Object -Property VirtualMachine -NE -Value $Null
-  $VMS1 = Get-AzVM -Name $VMFW1Name -ResourceGroupName $FW1RGName
-  $VMS2 = Get-AzVM -Name $VMFW2Name -ResourceGroupName $FW2RGName
+Function Get-FWInterfaces {
+  try {
+    $Nics = Get-AzNetworkInterface | Where-Object -Property VirtualMachine -NE -Value $Null -ErrorAction Stop  
+  }
+  catch {
+    Write-Error "Failed to retrieve Network Interfaces from subscription $SubscriptionID"
+    throw "Error: $($_.Exception.Message)"
+  }
+  try {
+    $VMS1 = Get-AzVM -Name $VMvMX1Name -ResourceGroupName $vMX1RGName -ErrorAction Stop  
+  }
+  catch {
+    Write-Error "Failed to retrieve Virtual Machine $VMvMX1Name from subscription $SubscriptionID"
+    throw "Error: $($_.Exception.Message)"
+  }
+  try {
+    $VMS2 = Get-AzVM -Name $VMvMX2Name -ResourceGroupName $vMX2RGName -ErrorAction Stop  
+  }
+  catch {
+    Write-Error "Failed to retrieve Virtual Machine $VMvMX2Name from subscription $SubscriptionID"
+    throw "Error: $($_.Exception.Message)"
+  }
 
-  foreach($Nic in $Nics)
-  {
+  foreach ($Nic in $Nics) {
 
-    if (($Nic.VirtualMachine.Id -EQ $VMS1.Id) -Or ($Nic.VirtualMachine.Id -EQ $VMS2.Id)) 
-    {
+    if (($Nic.VirtualMachine.Id -EQ $VMS1.Id) -Or ($Nic.VirtualMachine.Id -EQ $VMS2.Id)) {
       $VM = $VMS | Where-Object -Property Id -EQ -Value $Nic.VirtualMachine.Id
-      $Prv = $Nic.IpConfigurations | Select-Object -ExpandProperty PrivateIpAddress  
+      $Prv = $Nic.IpConfigurations | Select-Object -ExpandProperty PrivateIpAddress
 
-      if ($VM.Name -eq $VMFW1Name)
-      {
+      if ($VM.Name -eq $VMvMX1Name) {
         $Script:PrimaryInts += $Prv
       }
-      elseif($VM.Name -eq $vmFW2Name)
-      {
+      elseif ($VM.Name -eq $vmvMX2Name) {
         $Script:SecondaryInts += $Prv
       }
-
     }
 
   }
 }
 
-Function Get-Subscriptions
-{
-  Write-Output -InputObject "Enumerating all subscriptins ..."
-  $Script:ListOfSubscriptionIDs = (Get-AzSubscription).SubscriptionId
-  Write-Output -InputObject $Script:ListOfSubscriptionIDs
-}
+# #--------------------------------------------------------------------------
+# # Main code block for Azure function app                       
+# #--------------------------------------------------------------------------
 
-#--------------------------------------------------------------------------
-# Main code block for Azure function app                       
-#--------------------------------------------------------------------------
+# #$Password = ConvertTo-SecureString $env:SP_PASSWORD -AsPlainText -Force
+# #$Credential = New-Object System.Management.Automation.PSCredential ($env:SP_USERNAME, $Password)
+# #$AzureEnv = Get-AzEnvironment -Name $env:AZURECLOUD
+# #Add-AzAccount -ServicePrincipal -Tenant $env:TENANTID -Credential $Credential -SubscriptionId $env:SUBSCRIPTIONID -Environment $AzureEnv
 
-#$Password = ConvertTo-SecureString $env:SP_PASSWORD -AsPlainText -Force
-#$Credential = New-Object System.Management.Automation.PSCredential ($env:SP_USERNAME, $Password)
-#$AzureEnv = Get-AzEnvironment -Name $env:AZURECLOUD
-#Add-AzAccount -ServicePrincipal -Tenant $env:TENANTID -Credential $Credential -SubscriptionId $env:SUBSCRIPTIONID -Environment $AzureEnv
+# #$Context = Get-AzContext
+# #Set-AzContext -Context $Context
 
-#$Context = Get-AzContext
-#Set-AzContext -Context $Context
+# #--------------------------------------------------------------------------
+# # Use Managed Identity                   
+# #--------------------------------------------------------------------------
 
-#--------------------------------------------------------------------------
-# Use Managed Identity                   
-#--------------------------------------------------------------------------
-
-Connect-AzAccount -Identity
+#Connect-AzAccount -Identity
 
 $Script:PrimaryInts = @()
 $Script:SecondaryInts = @()
 $Script:ListOfSubscriptionIDs = @()
 
-# Check NVA firewall status $intTries with $intSleep between tries
+# Check vMX firewall status $intTries with $intSleep between tries
 
-$CtrFW1 = 0
-$CtrFW2 = 0
-$FW1Down = $True
-$FW2Down = $True
+$CtrvMX1 = 0
+$CtrvMX2 = 0
+$vMX1Down = $True
+$vMX2Down = $True
 
-$VMS = Get-AzVM
+try {
+  $VMS = Get-AzVM -ErrorAction Stop  
+}
+catch {
+  Write-Error "Failed to retrieve Virtual Machines from subscription $SubscriptionID"
+  throw "Error: $($_.Exception.Message)"
+}
 
-Get-Subscriptions
+#Get-Subscriptions
+try {
+  Set-AzContext -SubscriptionId $SubscriptionID -ErrorAction Stop | out-null 
+}
+catch {
+  Write-Error "Failed to set Context to $SubscriptionID"
+  throw "Error: $($_.Exception.Message)"
+}
 Get-FWInterfaces
 
-# Test primary and secondary NVA firewall status 
+# $PrimaryInts
 
-For ($Ctr = 1; $Ctr -le $IntTries; $Ctr++)
-{
+# Test primary and secondary vMX firewall status 
+
+For ($Ctr = 1; $Ctr -le $IntTries; $Ctr++) {
   
-  if ($Monitor -eq 'VMStatus')
-  {
-    $FW1Down = Test-VMStatus -VM $VMFW1Name -FwResourceGroup $FW1RGName
-    $FW2Down = Test-VMStatus -VM $VMFW2Name -FwResourceGroup $FW2RGName
+  if ($Monitor -eq 'VMStatus') {
+    $vMX1Down = Test-VMStatus -VM $VMvMX1Name -FwResourceGroup $vMX1RGName
+    $vMX2Down = Test-VMStatus -VM $VMvMX2Name -FwResourceGroup $vMX2RGName
   }
 
-  if ($Monitor -eq 'TCPPort')
-  {
-    $FW1Down = -not (Test-TCPPort -Server $TCPFW1Server -Port $TCPFW1Port)
-    $FW2Down = -not (Test-TCPPort -Server $TCPFW2Server -Port $TCPFW2Port)
+  if ($Monitor -eq 'TCPPort') {
+    $vMX1Down = -not (Test-TCPPort -Server $TCPvMX1Server -Port $TCPvMX1Port)
+    $vMX2Down = -not (Test-TCPPort -Server $TCPvMX2Server -Port $TCPvMX2Port)
   }
 
-  Write-Output -InputObject "Pass $Ctr of $IntTries - FW1Down is $FW1Down, FW2Down is $FW2Down"
+  Write-Verbose "Pass $Ctr of $IntTries - vMX1Down is $vMX1Down, vMX2Down is $vMX2Down"
 
-  if ($FW1Down) 
-  {
-    $CtrFW1++
+  if ($vMX1Down) {
+    $CtrvMX1++
   }
 
-  if ($FW2Down) 
-  {
-    $CtrFW2++
+  if ($vMX2Down) {
+    $CtrvMX2++
   }
 
-  Write-Output -InputObject "Sleeping $IntSleep seconds"
+  Write-Verbose "Sleeping $IntSleep seconds"
   Start-Sleep $IntSleep
 }
 
-# Reset individual test status and determine overall NVA firewall status
+# Reset individual test status and determine overall vMX firewall status
 
-$FW1Down = $False
-$FW2Down = $False
+$vMX1Down = $False
+$vMX2Down = $False
 
-if ($CtrFW1 -eq $intTries) 
-{
-  $FW1Down = $True
+if ($CtrvMX1 -eq $intTries) {
+  $vMX1Down = $True
 }
 
-if ($CtrFW2 -eq $intTries) 
-{
-  $FW2Down = $True
+if ($CtrvMX2 -eq $intTries) {
+  $vMX2Down = $True
 }
 
 # Failover or failback if needed
 
-if (($FW1Down) -and -not ($FW2Down))
-{
-  if ($FailOver)
-  {
-    Write-Output -InputObject 'FW1 Down - Failing over to FW2'
+if (($vMX1Down) -and -not ($vMX2Down)) {
+  if ($FailOver) {
+    Write-Verbose 'vMX1 Down - Failing over to vMX2'
     Start-Failover 
   }
 }
-elseif (-not ($FW1Down) -and ($FW2Down))
-{
-  if ($FailBack)
-  {
-    Write-Output -InputObject 'FW2 Down - Failing back to FW1'
+elseif (-not ($vMX1Down) -and ($vMX2Down)) {
+  if ($FailBack) {
+    Write-Verbose 'vMX2 Down - Failing back to vMX1'
     Start-Failback
   }
-  else 
-  {
-    Write-Output -InputObject 'FW2 Down - Failing back disabled'
+  else {
+    Write-Verbose 'vMX2 Down - Failing back disabled'
   }
 }
-elseif (($FW1Down) -and ($FW2Down))
-{
-  Write-Output -InputObject 'Both FW1 and FW2 Down - Manual recovery action required'
-  # Send-AlertMessage -message "NVA Alert: Both FW1 and FW2 Down - Manual recovery action is required"
+elseif (($vMX1Down) -and ($vMX2Down)) {
+  Write-Output -InputObject 'Both vMX1 and vMX2 Down - Manual recovery action required *This should raise an alert*'
 }
-else
-{
-  Write-Output -InputObject 'Both FW1 and FW2 Up - No action is required'
+else {
+  Write-Verbose 'Both vMX1 and vMX2 Up - No action is required'
 }
