@@ -228,7 +228,7 @@ Function Start-Failback {
 
     }
   
-    if ($x -ge 1) { Write-Output -InputObject "Route tables failed over to vMX2 *This should raise an alert*" } else { Write-Verbose "Route tables already failed over to vMX2 - No action is required" }
+    if ($x -ge 1) { Write-Output -InputObject "Route tables failed over to vMX2 *This should raise an alert*" } else { Write-Verbose "Route tables already failed over to vMX1 - No action is required" }
   }
 }
 
