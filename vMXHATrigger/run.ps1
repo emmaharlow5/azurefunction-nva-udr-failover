@@ -161,7 +161,7 @@ Function Start-Failover {
 
     }
   
-    if ($x -ge 1) { Write-Output -InputObject "Route tables failed over to vMX2 *This should raise an alert*" } else { Write-Verbose "Route tables already failed over to vMX2 - No action is required" }
+    if ($x -ge 1) { Write-Output -InputObject "Route tables failed over to vMX2"} else { Write-Verbose "Route tables already failed over to vMX2 - No action is required"}
   }
 
 }
@@ -228,7 +228,7 @@ Function Start-Failback {
 
     }
   
-    if ($x -ge 1) { Write-Output -InputObject "Route tables failed over to vMX2 *This should raise an alert*" } else { Write-Verbose "Route tables already failed over to vMX1 - No action is required" }
+    if ($x -ge 1) { Write-Output -InputObject "Route tables failed over to vMX2"} else { Write-Verbose "Route tables already failed over to vMX1 - No action is required"}
   }
 }
 
@@ -380,7 +380,7 @@ elseif (-not ($vMX1Down) -and ($vMX2Down)) {
   }
 }
 elseif (($vMX1Down) -and ($vMX2Down)) {
-  Write-Output -InputObject 'Both vMX1 and vMX2 Down - Manual recovery action required *This should raise an alert*'
+  Write-Output -InputObject 'Both vMX1 and vMX2 Down - Manual recovery action required'
 }
 else {
   Write-Verbose 'Both vMX1 and vMX2 Up - No action is required'
