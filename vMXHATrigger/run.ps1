@@ -42,15 +42,15 @@
 #
 #--------------------------------------------------------------------------
 
-param($vMXHATimer)
+param($myTimer)
 Write-Verbose "HA vMX timer trigger function executed at:$(Get-Date)"
 
 #--------------------------------------------------------------------------
 # Set firewall monitoring variables here
 #--------------------------------------------------------------------------
 $VerbosePreference = $env:VERBOSEPREFERENCE
-$VMVMX1Name = $env:VMVMX1Name
-$VMVMX2Name = $env:VMVMX2Name
+$VMX1VMName = $env:VMX1VMName
+$VMX2VMName = $env:VMX2VMName
 $VMX1RGName = $env:VMX1RGName
 $VMX2RGName = $env:VMX2RGName
 $Monitor = $env:VMXMONITOR
@@ -241,17 +241,17 @@ Function Get-FWInterfaces {
     throw "Error: $($_.Exception.Message)"
   }
   try {
-    $VMS1 = Get-AzVM -Name $VMvMX1Name -ResourceGroupName $vMX1RGName -ErrorAction Stop  
+    $VMS1 = Get-AzVM -Name $VMX1VMName -ResourceGroupName $vMX1RGName -ErrorAction Stop  
   }
   catch {
-    Write-Error "Failed to retrieve Virtual Machine $VMvMX1Name from subscription $SubscriptionID"
+    Write-Error "Failed to retrieve Virtual Machine $VMX1VMName from subscription $SubscriptionID"
     throw "Error: $($_.Exception.Message)"
   }
   try {
-    $VMS2 = Get-AzVM -Name $VMvMX2Name -ResourceGroupName $vMX2RGName -ErrorAction Stop  
+    $VMS2 = Get-AzVM -Name $VMX2VMName -ResourceGroupName $vMX2RGName -ErrorAction Stop  
   }
   catch {
-    Write-Error "Failed to retrieve Virtual Machine $VMvMX2Name from subscription $SubscriptionID"
+    Write-Error "Failed to retrieve Virtual Machine $VMX2VMName from subscription $SubscriptionID"
     throw "Error: $($_.Exception.Message)"
   }
 
@@ -261,10 +261,10 @@ Function Get-FWInterfaces {
       $VM = $VMS | Where-Object -Property Id -EQ -Value $Nic.VirtualMachine.Id
       $Prv = $Nic.IpConfigurations | Select-Object -ExpandProperty PrivateIpAddress
 
-      if ($VM.Name -eq $VMvMX1Name) {
+      if ($VM.Name -eq $VMX1VMName) {
         $Script:PrimaryInts += $Prv
       }
-      elseif ($VM.Name -eq $vmvMX2Name) {
+      elseif ($VM.Name -eq $VMX2VMName) {
         $Script:SecondaryInts += $Prv
       }
     }
@@ -326,8 +326,8 @@ Get-FWInterfaces
 For ($Ctr = 1; $Ctr -le $IntTries; $Ctr++) {
   
   if ($Monitor -eq 'VMStatus') {
-    $vMX1Down = Test-VMStatus -VM $VMvMX1Name -vMXResourceGroup $vMX1RGName
-    $vMX2Down = Test-VMStatus -VM $VMvMX2Name -vMXResourceGroup $vMX2RGName
+    $vMX1Down = Test-VMStatus -VM $VMX1VMName -vMXResourceGroup $vMX1RGName
+    $vMX2Down = Test-VMStatus -VM $VMX2VMName -vMXResourceGroup $vMX2RGName
   }
 
   if ($Monitor -eq 'TCPPort') {
