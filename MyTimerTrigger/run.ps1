@@ -289,7 +289,7 @@ Function Get-FWInterfaces {
 # # Use Managed Identity                   
 # #--------------------------------------------------------------------------
 
-#Connect-AzAccount -Identity
+Connect-AzAccount -Identity | out-null
 
 $Script:PrimaryInts = @()
 $Script:SecondaryInts = @()
