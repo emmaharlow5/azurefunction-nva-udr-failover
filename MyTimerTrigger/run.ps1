@@ -76,11 +76,9 @@ $IntSleep = $env:VMXDELAY       # Delay in seconds between tries
 # # Code blocks for supporting functions
 # #--------------------------------------------------------------------------
 
-
-
-Function Test-VMStatus ($VM, $FWResourceGroup) {
+Function Test-VMStatus ($VM, $vMXResourceGroup) {
   try {
-    $VMDetail = Get-AzVM -ResourceGroupName $FWResourceGroup -Name $VM -Status -ErrorAction Stop
+    $VMDetail = Get-AzVM -ResourceGroupName $vMXResourceGroup -Name $VM -Status -ErrorAction Stop
     foreach ($VMStatus in $VMDetail.Statuses) { 
       $Status = $VMStatus.code
       
@@ -219,19 +217,20 @@ Function Start-Failback {
 
       }  
 
-      $UpdateTable = [scriptblock] { param($Table) Set-AzRouteTable -RouteTable $Table -ErrorAction Stop }
-      &$UpdateTable $Table | out-null  
-    }
-    catch {
-      Write-Error "Failed to update routes in Route Table $($Table.Name)"
-      throw "Error: $($_.Exception.Message)"
-    }
+      try {
+        $UpdateTable = [scriptblock] { param($Table) Set-AzRouteTable -RouteTable $Table -ErrorAction Stop }
+        &$UpdateTable $Table | out-null  
+      }
+      catch {
+        Write-Error "Failed to update routes in Route Table $($Table.Name)"
+        throw "Error: $($_.Exception.Message)"
+      }
 
+    }
+  
+    if ($x -ge 1) { Write-Output -InputObject "Route tables failed over to vMX2 *This should raise an alert*" } else { Write-Verbose "Route tables already failed over to vMX2 - No action is required" }
   }
-
-  if ($x -ge 1) { Write-Output -InputObject "Route tables failed over to vMX2 *This should raise an alert*" } else { Write-Verbose "Route tables already failed over to vMX1 - No action is required" }
-}  
-
+}
 
 Function Get-FWInterfaces {
   try {
@@ -327,8 +326,8 @@ Get-FWInterfaces
 For ($Ctr = 1; $Ctr -le $IntTries; $Ctr++) {
   
   if ($Monitor -eq 'VMStatus') {
-    $vMX1Down = Test-VMStatus -VM $VMvMX1Name -FwResourceGroup $vMX1RGName
-    $vMX2Down = Test-VMStatus -VM $VMvMX2Name -FwResourceGroup $vMX2RGName
+    $vMX1Down = Test-VMStatus -VM $VMvMX1Name -vMXResourceGroup $vMX1RGName
+    $vMX2Down = Test-VMStatus -VM $VMvMX2Name -vMXResourceGroup $vMX2RGName
   }
 
   if ($Monitor -eq 'TCPPort') {
