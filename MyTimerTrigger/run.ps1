@@ -41,14 +41,14 @@
 #     Example:  "0 */5 * * * *" to run on multiples of 5 minutes on the 0-second mark
 #
 #--------------------------------------------------------------------------
-#$VerbosePreference = 'Continue'
+
 param($myTimer)
 Write-Verbose "HA vMX timer trigger function executed at:$(Get-Date)"
 
 #--------------------------------------------------------------------------
 # Set firewall monitoring variables here
 #--------------------------------------------------------------------------
-
+$VerbosePreference = $env:VERBOSEPREFERENCE
 $VMVMX1Name = $env:VMVMX1Name
 $VMVMX2Name = $env:VMVMX2Name
 $VMX1RGName = $env:VMX1RGName
