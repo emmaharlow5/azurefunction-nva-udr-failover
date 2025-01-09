@@ -302,7 +302,7 @@ $vMX1Down = $True
 $vMX2Down = $True
 
 try {
-  $VMS = Get-AzVMs -ErrorAction Stop  
+  $VMS = Get-AzVM -ErrorAction Stop  
 }
 catch {
   Write-Error "Failed to retrieve Virtual Machines from subscription $SubscriptionID"
