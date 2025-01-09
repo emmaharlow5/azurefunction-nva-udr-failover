@@ -102,7 +102,7 @@ Function Test-TCPPort ($Server, $Port) {
 }
 
 Function Start-Failover {
-  Write-Verbose "Starting Failover to vMX2"
+  Write-Verbose "Starting Failover to Secondary vMX"
   $RTable = @()
   $TagValue = $VMXUDRTAG # $env:VMXUDRTAG Update in Live
   try {
@@ -161,14 +161,14 @@ Function Start-Failover {
 
     }
   
-    if ($x -ge 1) { Write-Output -InputObject "Route tables failed over to vMX2"} else { Write-Verbose "Route tables already failed over to vMX2 - No action is required"}
+    if ($x -ge 1) { Write-Output -InputObject "Route tables failed over to Secondary vMX"} else { Write-Verbose "Route tables already failed over to Secondary vMX - No action is required"}
   }
 
 }
 
 Function Start-Failback {
     
-  Write-Verbose "Starting Failover to vMX1"
+  Write-Verbose "Starting Failover to Primary vMX"
   $RTable = @()
   $TagValue = $VMXUDRTAG # $env:VMXUDRTAG Update in Live
   try {
@@ -228,7 +228,7 @@ Function Start-Failback {
 
     }
   
-    if ($x -ge 1) { Write-Output -InputObject "Route tables failed over to vMX2"} else { Write-Verbose "Route tables already failed over to vMX1 - No action is required"}
+    if ($x -ge 1) { Write-Output -InputObject "Route tables failed over to Primary vMX"} else { Write-Verbose "Route tables already failed over to Primary vMX - No action is required"}
   }
 }
 
@@ -327,6 +327,7 @@ For ($Ctr = 1; $Ctr -le $IntTries; $Ctr++) {
   
   if ($Monitor -eq 'VMStatus') {
     $vMX1Down = Test-VMStatus -VM $VMX1VMName -vMXResourceGroup $vMX1RGName
+    # $vMX1Down = $True
     # $vMX2Down = Test-VMStatus -VM $VMX2VMName -vMXResourceGroup $vMX2RGName
     $vMX2Down = $True
   }
@@ -367,22 +368,22 @@ if ($CtrvMX2 -eq $intTries) {
 
 if (($vMX1Down) -and -not ($vMX2Down)) {
   if ($FailOver) {
-    Write-Verbose 'vMX1 Down - Failing over to vMX2'
+    Write-Verbose 'Primary vMX Down - Failing over to Secondary vMX'
     Start-Failover 
   }
 }
 elseif (-not ($vMX1Down) -and ($vMX2Down)) {
   if ($FailBack) {
-    Write-Verbose 'vMX2 Down - Failing back to vMX1'
+    Write-Verbose 'Secondary vMX Down - Failing back to Primary vMX'
     Start-Failback
   }
   else {
-    Write-Verbose 'vMX2 Down - Failing back disabled'
+    Write-Verbose 'Secondary vMX Down - Failing back disabled'
   }
 }
 elseif (($vMX1Down) -and ($vMX2Down)) {
-  Write-Output -InputObject 'Both vMX1 and vMX2 Down - Manual recovery action required'
+  Write-Output -InputObject 'Both Primary vMX and Secondary vMX Down - Manual recovery action required'
 }
 else {
-  Write-Verbose 'Both vMX1 and vMX2 Up - No action is required'
+  Write-Verbose 'Both Primary vMX and Secondary vMX Up - No action is required'
 }
