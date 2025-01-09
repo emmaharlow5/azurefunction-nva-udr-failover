@@ -328,8 +328,8 @@ For ($Ctr = 1; $Ctr -le $IntTries; $Ctr++) {
   if ($Monitor -eq 'VMStatus') {
     $vMX1Down = Test-VMStatus -VM $VMX1VMName -vMXResourceGroup $vMX1RGName
     # $vMX1Down = $True
-    # $vMX2Down = Test-VMStatus -VM $VMX2VMName -vMXResourceGroup $vMX2RGName
-    $vMX2Down = $True
+    $vMX2Down = Test-VMStatus -VM $VMX2VMName -vMXResourceGroup $vMX2RGName
+    # $vMX2Down = $True
   }
 
   if ($Monitor -eq 'TCPPort') {
