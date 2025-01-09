@@ -68,7 +68,7 @@ $SubscriptionID = $env:SUBSCRIPTIONID
 # #--------------------------------------------------------------------------
 
 $FailOver = $True              # Trigger to enable fail-over to secondary vMX firewall if primary vMX firewall drops when active
-$FailBack = $True              # Trigger to enable fail-back to primary vMX firewall is secondary vMX firewall drops when active
+$FailBack = $True              # Trigger to enable fail-back to primary vMX firewall if secondary vMX firewall drops when active
 $IntTries = $env:VMXTRIES       # Number of Firewall tests to try 
 $IntSleep = $env:VMXDELAY       # Delay in seconds between tries
 
@@ -326,8 +326,8 @@ Get-FWInterfaces
 For ($Ctr = 1; $Ctr -le $IntTries; $Ctr++) {
   
   if ($Monitor -eq 'VMStatus') {
-    # $vMX1Down = Test-VMStatus -VM $VMX1VMName -vMXResourceGroup $vMX1RGName
-    $vMX1Down = $True
+    $vMX1Down = Test-VMStatus -VM $VMX1VMName -vMXResourceGroup $vMX1RGName
+    # $vMX1Down = $True
     $vMX2Down = Test-VMStatus -VM $VMX2VMName -vMXResourceGroup $vMX2RGName
     # $vMX2Down = $True
   }
