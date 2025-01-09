@@ -276,14 +276,6 @@ Function Get-FWInterfaces {
 # # Main code block for Azure function app                       
 # #--------------------------------------------------------------------------
 
-# #$Password = ConvertTo-SecureString $env:SP_PASSWORD -AsPlainText -Force
-# #$Credential = New-Object System.Management.Automation.PSCredential ($env:SP_USERNAME, $Password)
-# #$AzureEnv = Get-AzEnvironment -Name $env:AZURECLOUD
-# #Add-AzAccount -ServicePrincipal -Tenant $env:TENANTID -Credential $Credential -SubscriptionId $env:SUBSCRIPTIONID -Environment $AzureEnv
-
-# #$Context = Get-AzContext
-# #Set-AzContext -Context $Context
-
 # #--------------------------------------------------------------------------
 # # Use Managed Identity                   
 # #--------------------------------------------------------------------------
@@ -294,7 +286,7 @@ $Script:PrimaryInts = @()
 $Script:SecondaryInts = @()
 $Script:ListOfSubscriptionIDs = @()
 
-# Check vMX firewall status $intTries with $intSleep between tries
+# Check vMX status $intTries with $intSleep between tries
 
 $CtrvMX1 = 0
 $CtrvMX2 = 0
@@ -327,9 +319,7 @@ For ($Ctr = 1; $Ctr -le $IntTries; $Ctr++) {
   
   if ($Monitor -eq 'VMStatus') {
     $vMX1Down = Test-VMStatus -VM $VMX1VMName -vMXResourceGroup $vMX1RGName
-    # $vMX1Down = $True
-    # $vMX2Down = Test-VMStatus -VM $VMX2VMName -vMXResourceGroup $vMX2RGName
-    $vMX2Down = $True
+    $vMX2Down = Test-VMStatus -VM $VMX2VMName -vMXResourceGroup $vMX2RGName
   }
 
   if ($Monitor -eq 'TCPPort') {
